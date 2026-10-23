@@ -351,11 +351,11 @@ def _docx_to_pdf(path):
         # Detect headings
         if para.style and para.style.name and "Heading" in para.style.name:
             pdf.set_font("Helvetica", "B", size=14)
-            pdf.multi_cell(0, 7, text)
+            pdf.multi_cell(w=pdf.epw, h=7, text=text)
             pdf.set_font("Helvetica", size=11)
             pdf.ln(2)
         else:
-            pdf.multi_cell(0, 6, text)
+            pdf.multi_cell(w=pdf.epw, h=6, text=text)
             pdf.ln(1)
 
     pdf.output(out)
@@ -395,9 +395,8 @@ def _text_to_pdf(path):
         line_height = 6
 
     for line in content.split("\n"):
-        # fpdf can't handle some chars; replace problematic ones
         line = line.replace("\r", "").replace("\t", "    ")
-        pdf.multi_cell(0, line_height, line)
+        pdf.multi_cell(w=pdf.epw, h=line_height, text=line)
 
     pdf.output(out)
     return True, f"Saved to {out}"
@@ -438,7 +437,6 @@ def _markdown_to_html(path):
 
 
 def _markdown_to_pdf(path):
-    # Convert MD → HTML first, then render to PDF via fpdf
     import markdown
     from fpdf import FPDF
 
@@ -457,20 +455,20 @@ def _markdown_to_pdf(path):
         # Simple markdown heading detection
         if line.startswith("# "):
             pdf.set_font("Helvetica", "B", size=18)
-            pdf.multi_cell(0, 10, line[2:])
+            pdf.multi_cell(w=pdf.epw, h=10, text=line[2:])
             pdf.set_font("Helvetica", size=11)
         elif line.startswith("## "):
             pdf.set_font("Helvetica", "B", size=15)
-            pdf.multi_cell(0, 8, line[3:])
+            pdf.multi_cell(w=pdf.epw, h=8, text=line[3:])
             pdf.set_font("Helvetica", size=11)
         elif line.startswith("### "):
             pdf.set_font("Helvetica", "B", size=13)
-            pdf.multi_cell(0, 7, line[4:])
+            pdf.multi_cell(w=pdf.epw, h=7, text=line[4:])
             pdf.set_font("Helvetica", size=11)
         elif line.strip() == "":
             pdf.ln(4)
         else:
-            pdf.multi_cell(0, 6, line)
+            pdf.multi_cell(w=pdf.epw, h=6, text=line)
 
     pdf.output(out)
     return True, f"Saved to {out}"
@@ -514,12 +512,12 @@ def _html_to_pdf(path):
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
-    pdf.set_font("Helvetica", size=11)
+    pdf.set_font("Helvetica", size=10)
 
     for line in text.split("\n"):
         line = line.strip().replace("\t", "    ")
         if line:
-            pdf.multi_cell(0, 6, line)
+            pdf.multi_cell(w=pdf.epw, h=6, text=line)
         else:
             pdf.ln(3)
 

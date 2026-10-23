@@ -22,7 +22,7 @@
     "pdf": {
       "extensions": ["pdf"],
       "targets": ["png", "jpg", "txt", "docx"],
-      "extra": [["All pages → PNGs", "pdf_all_png"]]
+      "extra": [["All pages to PNGs", "pdf_all_png"]]
     },
     "document": {
       "extensions": ["docx", "doc", "odt", "rtf"],
