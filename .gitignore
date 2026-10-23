@@ -9,3 +9,5 @@ build/
 venv/
 .venv/
 *.exe
+installer_output/
+
