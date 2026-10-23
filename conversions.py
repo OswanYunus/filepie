@@ -1,9 +1,16 @@
 """All conversion logic lives here, driven entirely by config.json.
 
-To support a new file type, you do NOT need to touch this file: just add a
-category to config.json with its extensions and target formats. You only
-need to edit this file if a new target needs a genuinely new converter
-(e.g. a new tool beyond ffmpeg / Pillow / zipfile / blender).
+Converters wired up:
+  ffmpeg        → video/audio conversions
+  Pillow        → image conversions
+  PyMuPDF       → PDF → images / text
+  pdf2docx      → PDF → DOCX
+  fpdf2         → anything text-like → PDF
+  python-docx   → DOCX → text
+  beautifulsoup → HTML → text
+  markdown      → MD → HTML
+  zipfile       → zip/unzip
+  Blender       → blend exports
 """
 import os
 import shutil
@@ -67,24 +74,89 @@ def run_conversion(path, target, cfg):
     instead of raising, so a bad conversion never takes the app down."""
     try:
         category = get_category(path, cfg)
+
+        # ---- folders / archives ----
         if category == "folder":
             return _zip_folder(path)
         if category == "archive" and target == "extract":
             return _unzip(path)
+
+        # ---- video ----
         if category == "video":
             if target == "extract_audio_mp3":
                 return _ffmpeg_extract_audio(path, cfg)
+            if target == "gif":
+                return _ffmpeg_to_gif(path, cfg)
             return _ffmpeg_convert(path, target, cfg)
+
+        # ---- audio ----
         if category == "audio":
             return _ffmpeg_convert(path, target, cfg)
+
+        # ---- images ----
         if category == "image":
+            if target == "pdf":
+                return _image_to_pdf(path)
             return _image_convert(path, target)
+
+        # ---- PDF ----
+        if category == "pdf":
+            if target == "png" or target == "jpg":
+                return _pdf_to_image(path, target, first_page_only=True)
+            if target == "pdf_all_png":
+                return _pdf_to_image(path, "png", first_page_only=False)
+            if target == "txt":
+                return _pdf_to_text(path)
+            if target == "docx":
+                return _pdf_to_docx(path)
+
+        # ---- documents (docx, doc, odt, rtf) ----
+        if category == "document":
+            if target == "pdf":
+                return _document_to_pdf(path)
+            if target == "txt":
+                return _document_to_text(path)
+
+        # ---- plaintext / code / json_data ----
+        if category in ("plaintext", "code", "json_data"):
+            if target == "pdf":
+                return _text_to_pdf(path)
+            if target == "txt":
+                return _file_copy_as(path, "txt")
+
+        # ---- markdown ----
+        if category == "markdown":
+            if target == "pdf":
+                return _markdown_to_pdf(path)
+            if target == "html":
+                return _markdown_to_html(path)
+            if target == "txt":
+                return _file_to_plain_text(path)
+
+        # ---- web (html, htm) ----
+        if category == "web":
+            if target == "pdf":
+                return _html_to_pdf(path)
+            if target == "txt":
+                return _html_to_text(path)
+
+        # ---- spreadsheet ----
+        if category == "spreadsheet":
+            if target == "pdf":
+                return _text_to_pdf(path)
+            if target == "xlsx":
+                return _csv_to_xlsx(path)
+
+        # ---- blender ----
         if category == "blend":
             return _blend_export(path, target, cfg)
-        return False, f"No converter registered for category '{category}'."
+
+        return False, f"No converter registered for category '{category}' → '{target}'."
     except Exception as exc:  # belt and braces: never crash the app
         return False, f"Conversion failed: {exc}"
 
+
+# ---- output path helper ------------------------------------------------
 
 def _output_path(path, target_ext):
     base, _ = os.path.splitext(path)
@@ -95,6 +167,19 @@ def _output_path(path, target_ext):
         counter += 1
     return out
 
+
+def _output_dir(path, suffix=""):
+    base, _ = os.path.splitext(path)
+    out = base + suffix
+    counter = 1
+    while os.path.exists(out):
+        out = f"{base}{suffix} ({counter})"
+        counter += 1
+    os.makedirs(out, exist_ok=True)
+    return out
+
+
+# ---- ffmpeg converters --------------------------------------------------
 
 def _ffmpeg_convert(path, target_ext, cfg):
     ffmpeg = cfg.get("ffmpeg_path", "ffmpeg")
@@ -116,17 +201,374 @@ def _ffmpeg_extract_audio(path, cfg):
     return True, f"Saved to {out}"
 
 
+def _ffmpeg_to_gif(path, cfg):
+    ffmpeg = cfg.get("ffmpeg_path", "ffmpeg")
+    out = _output_path(path, "gif")
+    # Make a reasonable quality GIF: 480px wide, 15fps, first 10 seconds
+    cmd = [
+        ffmpeg, "-y", "-i", path,
+        "-t", "10",
+        "-vf", "fps=15,scale=480:-1:flags=lanczos",
+        "-loop", "0",
+        out,
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True, **_no_window_flags())
+    if result.returncode != 0 or not os.path.exists(out):
+        return False, "ffmpeg failed — is ffmpeg installed and on PATH?\n" + result.stderr[-500:]
+    return True, f"Saved to {out}"
+
+
+# ---- image converters ---------------------------------------------------
+
 def _image_convert(path, target_ext):
     from PIL import Image
 
     out = _output_path(path, target_ext)
     img = Image.open(path)
-    if target_ext in ("jpg", "jpeg") and img.mode in ("RGBA", "P"):
+    if target_ext in ("jpg", "jpeg") and img.mode in ("RGBA", "P", "LA"):
         img = img.convert("RGB")  # jpg has no alpha channel
+    if target_ext == "ico":
+        img = img.convert("RGBA")
+        img.save(out, format="ICO", sizes=[(256, 256), (128, 128), (64, 64), (32, 32), (16, 16)])
+        return True, f"Saved to {out}"
     save_format = "JPEG" if target_ext in ("jpg", "jpeg") else target_ext.upper()
     img.save(out, format=save_format)
     return True, f"Saved to {out}"
 
+
+def _image_to_pdf(path):
+    from PIL import Image
+
+    out = _output_path(path, "pdf")
+    img = Image.open(path)
+    if img.mode == "RGBA":
+        img = img.convert("RGB")
+    img.save(out, "PDF")
+    return True, f"Saved to {out}"
+
+
+# ---- PDF converters -----------------------------------------------------
+
+def _pdf_to_image(path, target_ext, first_page_only=True):
+    import fitz  # PyMuPDF
+
+    doc = fitz.open(path)
+    if first_page_only:
+        out = _output_path(path, target_ext)
+        page = doc[0]
+        mat = fitz.Matrix(3, 3)  # 3x zoom → ~216 dpi
+        pix = page.get_pixmap(matrix=mat)
+        if target_ext == "jpg":
+            pix.save(out, output="jpeg")
+        else:
+            pix.save(out)
+        doc.close()
+        return True, f"Saved to {out} (page 1 of {len(doc)})"
+    else:
+        # All pages
+        out_dir = _output_dir(path, "_pages")
+        for i, page in enumerate(doc):
+            mat = fitz.Matrix(3, 3)
+            pix = page.get_pixmap(matrix=mat)
+            page_file = os.path.join(out_dir, f"page_{i + 1:03d}.{target_ext}")
+            if target_ext == "jpg":
+                pix.save(page_file, output="jpeg")
+            else:
+                pix.save(page_file)
+        doc.close()
+        return True, f"Saved {len(doc)} pages to {out_dir}"
+
+
+def _pdf_to_text(path):
+    import fitz  # PyMuPDF
+
+    doc = fitz.open(path)
+    out = _output_path(path, "txt")
+    text_parts = []
+    for page in doc:
+        text_parts.append(page.get_text())
+    doc.close()
+    with open(out, "w", encoding="utf-8") as f:
+        f.write("\n\n".join(text_parts))
+    return True, f"Saved to {out} ({len(text_parts)} pages extracted)"
+
+
+def _pdf_to_docx(path):
+    from pdf2docx import Converter
+
+    out = _output_path(path, "docx")
+    cv = Converter(path)
+    cv.convert(out)
+    cv.close()
+    return True, f"Saved to {out}"
+
+
+# ---- document converters ------------------------------------------------
+
+def _document_to_text(path):
+    ext = os.path.splitext(path)[1].lower()
+    out = _output_path(path, "txt")
+
+    if ext == ".docx":
+        from docx import Document
+        doc = Document(path)
+        text = "\n\n".join(p.text for p in doc.paragraphs)
+        with open(out, "w", encoding="utf-8") as f:
+            f.write(text)
+        return True, f"Saved to {out}"
+
+    # For other doc formats, try reading as text
+    return _file_to_plain_text(path)
+
+
+def _document_to_pdf(path):
+    ext = os.path.splitext(path)[1].lower()
+
+    if ext == ".docx":
+        return _docx_to_pdf(path)
+
+    # For other formats, convert to text first then to PDF
+    return _text_to_pdf(path)
+
+
+def _docx_to_pdf(path):
+    from docx import Document
+    from fpdf import FPDF
+
+    doc = Document(path)
+    out = _output_path(path, "pdf")
+
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+    pdf.set_font("Helvetica", size=11)
+
+    for para in doc.paragraphs:
+        text = para.text.strip()
+        if not text:
+            pdf.ln(4)
+            continue
+        # Detect headings
+        if para.style and para.style.name and "Heading" in para.style.name:
+            pdf.set_font("Helvetica", "B", size=14)
+            pdf.multi_cell(0, 7, text)
+            pdf.set_font("Helvetica", size=11)
+            pdf.ln(2)
+        else:
+            pdf.multi_cell(0, 6, text)
+            pdf.ln(1)
+
+    pdf.output(out)
+    return True, f"Saved to {out}"
+
+
+# ---- text / code → PDF --------------------------------------------------
+
+def _text_to_pdf(path):
+    from fpdf import FPDF
+
+    out = _output_path(path, "pdf")
+    ext = os.path.splitext(path)[1].lower()
+
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        content = f.read()
+
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+
+    filename = os.path.basename(path)
+    pdf.set_font("Helvetica", "B", size=12)
+    pdf.cell(0, 10, filename, ln=True)
+    pdf.ln(4)
+
+    # Use monospace font for code files
+    code_exts = {".py", ".js", ".ts", ".java", ".c", ".cpp", ".h", ".cs", ".go",
+                 ".rs", ".rb", ".php", ".swift", ".kt", ".sh", ".bat", ".ps1",
+                 ".sql", ".r", ".lua", ".dart", ".scala", ".json", ".xml",
+                 ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf", ".csv", ".tsv"}
+    if ext in code_exts:
+        pdf.set_font("Courier", size=9)
+        line_height = 4.5
+    else:
+        pdf.set_font("Helvetica", size=11)
+        line_height = 6
+
+    for line in content.split("\n"):
+        # fpdf can't handle some chars; replace problematic ones
+        line = line.replace("\r", "").replace("\t", "    ")
+        pdf.multi_cell(0, line_height, line)
+
+    pdf.output(out)
+    return True, f"Saved to {out}"
+
+
+# ---- markdown converters ------------------------------------------------
+
+def _markdown_to_html(path):
+    import markdown
+
+    out = _output_path(path, "html")
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        md_content = f.read()
+
+    html_body = markdown.markdown(md_content, extensions=["tables", "fenced_code"])
+    html_doc = f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>{os.path.basename(path)}</title>
+<style>
+  body {{ font-family: -apple-system, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #333; }}
+  pre {{ background: #f4f4f4; padding: 12px; border-radius: 6px; overflow-x: auto; }}
+  code {{ background: #f4f4f4; padding: 2px 6px; border-radius: 3px; }}
+  table {{ border-collapse: collapse; width: 100%; }}
+  th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+  th {{ background: #f0f0f0; }}
+</style>
+</head>
+<body>
+{html_body}
+</body>
+</html>"""
+
+    with open(out, "w", encoding="utf-8") as f:
+        f.write(html_doc)
+    return True, f"Saved to {out}"
+
+
+def _markdown_to_pdf(path):
+    # Convert MD → HTML first, then render to PDF via fpdf
+    import markdown
+    from fpdf import FPDF
+
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        content = f.read()
+
+    out = _output_path(path, "pdf")
+
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+    pdf.set_font("Helvetica", size=11)
+
+    for line in content.split("\n"):
+        line = line.replace("\r", "").replace("\t", "    ")
+        # Simple markdown heading detection
+        if line.startswith("# "):
+            pdf.set_font("Helvetica", "B", size=18)
+            pdf.multi_cell(0, 10, line[2:])
+            pdf.set_font("Helvetica", size=11)
+        elif line.startswith("## "):
+            pdf.set_font("Helvetica", "B", size=15)
+            pdf.multi_cell(0, 8, line[3:])
+            pdf.set_font("Helvetica", size=11)
+        elif line.startswith("### "):
+            pdf.set_font("Helvetica", "B", size=13)
+            pdf.multi_cell(0, 7, line[4:])
+            pdf.set_font("Helvetica", size=11)
+        elif line.strip() == "":
+            pdf.ln(4)
+        else:
+            pdf.multi_cell(0, 6, line)
+
+    pdf.output(out)
+    return True, f"Saved to {out}"
+
+
+# ---- HTML converters ----------------------------------------------------
+
+def _html_to_text(path):
+    from bs4 import BeautifulSoup
+
+    out = _output_path(path, "txt")
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        soup = BeautifulSoup(f.read(), "html.parser")
+
+    # Remove script and style tags
+    for tag in soup(["script", "style"]):
+        tag.decompose()
+
+    text = soup.get_text(separator="\n")
+    # Clean up blank lines
+    lines = [line.strip() for line in text.splitlines()]
+    text = "\n".join(line for line in lines if line)
+
+    with open(out, "w", encoding="utf-8") as f:
+        f.write(text)
+    return True, f"Saved to {out}"
+
+
+def _html_to_pdf(path):
+    from fpdf import FPDF
+    from bs4 import BeautifulSoup
+
+    out = _output_path(path, "pdf")
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        soup = BeautifulSoup(f.read(), "html.parser")
+
+    for tag in soup(["script", "style"]):
+        tag.decompose()
+    text = soup.get_text(separator="\n")
+
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+    pdf.set_font("Helvetica", size=11)
+
+    for line in text.split("\n"):
+        line = line.strip().replace("\t", "    ")
+        if line:
+            pdf.multi_cell(0, 6, line)
+        else:
+            pdf.ln(3)
+
+    pdf.output(out)
+    return True, f"Saved to {out}"
+
+
+# ---- CSV → XLSX ---------------------------------------------------------
+
+def _csv_to_xlsx(path):
+    """Convert CSV to XLSX using openpyxl if available, otherwise fall back."""
+    try:
+        import openpyxl
+    except ImportError:
+        return False, "openpyxl is needed for CSV→XLSX. Run: pip install openpyxl"
+
+    import csv
+
+    out = _output_path(path, "xlsx")
+    wb = openpyxl.Workbook()
+    ws = wb.active
+
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            ws.append(row)
+
+    wb.save(out)
+    return True, f"Saved to {out}"
+
+
+# ---- plain text helpers -------------------------------------------------
+
+def _file_to_plain_text(path):
+    out = _output_path(path, "txt")
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        content = f.read()
+    with open(out, "w", encoding="utf-8") as f:
+        f.write(content)
+    return True, f"Saved to {out}"
+
+
+def _file_copy_as(path, target_ext):
+    out = _output_path(path, target_ext)
+    shutil.copy2(path, out)
+    return True, f"Saved to {out}"
+
+
+# ---- zip / unzip --------------------------------------------------------
 
 def _zip_folder(folder_path):
     base = folder_path.rstrip("\\/")
@@ -150,6 +592,8 @@ def _unzip(zip_path):
         zf.extractall(out_dir)
     return True, f"Extracted to {out_dir}"
 
+
+# ---- blender export -----------------------------------------------------
 
 def _blend_export(path, target_ext, cfg):
     blender = cfg.get("blender_path")

@@ -1,22 +1,62 @@
 {
-  "hotkey": "ctrl+alt+space",
+  "hotkey": "ctrl+shift+q",
   "ffmpeg_path": "ffmpeg",
   "blender_path": "C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe",
 
   "categories": {
     "video": {
-      "extensions": ["mp4", "mkv", "avi", "mov", "webm", "flv", "wmv", "m4v"],
-      "targets": ["mp4", "mkv", "avi", "mov", "webm"],
+      "extensions": ["mp4", "mkv", "avi", "mov", "webm", "flv", "wmv", "m4v", "ts", "mts", "3gp", "ogv", "vob"],
+      "targets": ["mp4", "mkv", "avi", "mov", "webm", "gif"],
       "extra": [["Extract MP3", "extract_audio_mp3"]]
     },
     "audio": {
-      "extensions": ["mp3", "wav", "flac", "aac", "ogg", "m4a", "wma"],
+      "extensions": ["mp3", "wav", "flac", "aac", "ogg", "m4a", "wma", "opus", "amr", "aiff", "mid"],
       "targets": ["mp3", "wav", "flac", "aac", "ogg", "m4a"],
       "extra": []
     },
     "image": {
-      "extensions": ["jpg", "jpeg", "png", "bmp", "gif", "webp", "tiff", "ico"],
-      "targets": ["jpg", "png", "webp", "bmp", "gif", "tiff"],
+      "extensions": ["jpg", "jpeg", "png", "bmp", "gif", "webp", "tiff", "tif", "ico", "svg", "heic", "heif", "avif", "jfif", "ppm", "pgm", "pbm", "tga"],
+      "targets": ["jpg", "png", "webp", "bmp", "gif", "tiff", "pdf", "ico"],
+      "extra": []
+    },
+    "pdf": {
+      "extensions": ["pdf"],
+      "targets": ["png", "jpg", "txt", "docx"],
+      "extra": [["All pages → PNGs", "pdf_all_png"]]
+    },
+    "document": {
+      "extensions": ["docx", "doc", "odt", "rtf"],
+      "targets": ["pdf", "txt"],
+      "extra": []
+    },
+    "plaintext": {
+      "extensions": ["txt", "log", "ini", "cfg", "conf", "yaml", "yml", "toml", "env"],
+      "targets": ["pdf"],
+      "extra": []
+    },
+    "markdown": {
+      "extensions": ["md", "markdown", "rst"],
+      "targets": ["pdf", "html", "txt"],
+      "extra": []
+    },
+    "web": {
+      "extensions": ["html", "htm", "xhtml", "mhtml"],
+      "targets": ["pdf", "txt"],
+      "extra": []
+    },
+    "spreadsheet": {
+      "extensions": ["csv", "tsv"],
+      "targets": ["pdf", "xlsx"],
+      "extra": []
+    },
+    "code": {
+      "extensions": ["py", "js", "ts", "java", "c", "cpp", "h", "cs", "go", "rs", "rb", "php", "swift", "kt", "sh", "bat", "ps1", "sql", "r", "lua", "dart", "scala"],
+      "targets": ["pdf", "txt"],
+      "extra": []
+    },
+    "json_data": {
+      "extensions": ["json", "xml"],
+      "targets": ["txt", "pdf"],
       "extra": []
     },
     "blend": {
