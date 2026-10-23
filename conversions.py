@@ -250,13 +250,16 @@ def _image_to_pdf(path):
 # ---- PDF converters -----------------------------------------------------
 
 def _pdf_to_image(path, target_ext, first_page_only=True):
-    import fitz  # PyMuPDF
+    try:
+        import fitz
+    except ImportError:
+        return False, "PyMuPDF (fitz) is required for PDF to image rendering."
 
     doc = fitz.open(path)
     if first_page_only:
         out = _output_path(path, target_ext)
         page = doc[0]
-        mat = fitz.Matrix(3, 3)  # 3x zoom → ~216 dpi
+        mat = fitz.Matrix(3, 3)
         pix = page.get_pixmap(matrix=mat)
         if target_ext == "jpg":
             pix.save(out, output="jpeg")
@@ -265,7 +268,6 @@ def _pdf_to_image(path, target_ext, first_page_only=True):
         doc.close()
         return True, f"Saved to {out} (page 1 of {len(doc)})"
     else:
-        # All pages
         out_dir = _output_dir(path, "_pages")
         for i, page in enumerate(doc):
             mat = fitz.Matrix(3, 3)
@@ -280,27 +282,36 @@ def _pdf_to_image(path, target_ext, first_page_only=True):
 
 
 def _pdf_to_text(path):
-    import fitz  # PyMuPDF
-
-    doc = fitz.open(path)
-    out = _output_path(path, "txt")
-    text_parts = []
-    for page in doc:
-        text_parts.append(page.get_text())
-    doc.close()
-    with open(out, "w", encoding="utf-8") as f:
-        f.write("\n\n".join(text_parts))
-    return True, f"Saved to {out} ({len(text_parts)} pages extracted)"
+    try:
+        from pypdf import PdfReader
+        reader = PdfReader(path)
+        out = _output_path(path, "txt")
+        text_parts = [page.extract_text() or "" for page in reader.pages]
+        with open(out, "w", encoding="utf-8") as f:
+            f.write("\n\n".join(text_parts))
+        return True, f"Saved to {out} ({len(text_parts)} pages extracted)"
+    except Exception:
+        # Fallback to fitz if pypdf has an issue
+        import fitz
+        doc = fitz.open(path)
+        out = _output_path(path, "txt")
+        text_parts = [page.get_text() for page in doc]
+        doc.close()
+        with open(out, "w", encoding="utf-8") as f:
+            f.write("\n\n".join(text_parts))
+        return True, f"Saved to {out} ({len(text_parts)} pages extracted)"
 
 
 def _pdf_to_docx(path):
-    from pdf2docx import Converter
-
-    out = _output_path(path, "docx")
-    cv = Converter(path)
-    cv.convert(out)
-    cv.close()
-    return True, f"Saved to {out}"
+    try:
+        from pdf2docx import Converter
+        out = _output_path(path, "docx")
+        cv = Converter(path)
+        cv.convert(out)
+        cv.close()
+        return True, f"Saved to {out}"
+    except ImportError:
+        return False, "pdf2docx is not bundled in this build."
 
 
 # ---- document converters ------------------------------------------------
