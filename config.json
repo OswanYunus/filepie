@@ -1,0 +1,38 @@
+{
+  "hotkey": "ctrl+alt+space",
+  "ffmpeg_path": "ffmpeg",
+  "blender_path": "C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe",
+
+  "categories": {
+    "video": {
+      "extensions": ["mp4", "mkv", "avi", "mov", "webm", "flv", "wmv", "m4v"],
+      "targets": ["mp4", "mkv", "avi", "mov", "webm"],
+      "extra": [["Extract MP3", "extract_audio_mp3"]]
+    },
+    "audio": {
+      "extensions": ["mp3", "wav", "flac", "aac", "ogg", "m4a", "wma"],
+      "targets": ["mp3", "wav", "flac", "aac", "ogg", "m4a"],
+      "extra": []
+    },
+    "image": {
+      "extensions": ["jpg", "jpeg", "png", "bmp", "gif", "webp", "tiff", "ico"],
+      "targets": ["jpg", "png", "webp", "bmp", "gif", "tiff"],
+      "extra": []
+    },
+    "blend": {
+      "extensions": ["blend"],
+      "targets": ["obj", "fbx", "gltf", "stl"],
+      "extra": []
+    },
+    "archive": {
+      "extensions": ["zip"],
+      "targets": [],
+      "extra": [["Extract Here", "extract"]]
+    },
+    "folder": {
+      "extensions": [],
+      "targets": [],
+      "extra": [["Compress to ZIP", "zip"]]
+    }
+  }
+}
