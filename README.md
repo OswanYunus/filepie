@@ -1,4 +1,4 @@
-# FilePie 🥧
+# FilePie
 
 **The radial pie-menu file converter for Windows.**
 
@@ -6,7 +6,7 @@ Right-click any file or folder in Windows Explorer, and an intuitive radial whee
 
 ---
 
-## ⚡ Download & Install (Zero Setup)
+## Download & Install (Zero Setup)
 
 1. Go to **[Releases](https://github.com/OswanYunus/filepie/releases)**.
 2. Download **`FilePie_Setup_v1.0.0.exe`**.
@@ -15,17 +15,17 @@ Right-click any file or folder in Windows Explorer, and an intuitive radial whee
 
 ---
 
-## 🎮 How to Use
+## How to Use
 
 1. In Windows Explorer, **right-click** any file or folder.
    *(On Windows 11, click "Show more options" or press `Shift + F10`)*.
-2. Click **Convert with FilePie 🥧**.
+2. Click **Convert with FilePie**.
 3. Move your mouse toward any wedge on the circular wheel and **click to convert**.
 4. A notification appears when the converted file is ready right next to the original!
 
 ---
 
-## 📁 Supported Conversions Out of the Box
+## Supported Conversions Out of the Box
 
 | File Type | Available Conversions |
 |-----------|------------------------|
@@ -43,13 +43,13 @@ Right-click any file or folder in Windows Explorer, and an intuitive radial whee
 
 ---
 
-## ⚙️ Customizing Formats & Targets
+## Customizing Formats & Targets
 
 All file formats and conversions are driven by a simple `config.json` installed alongside the app. You can add new extensions, target formats, or custom command triggers at any time without recompiling.
 
 ---
 
-## 🛠️ Building from Source (Developers Only)
+## Building from Source (Developers Only)
 
 If you wish to run or modify the Python source directly:
 
