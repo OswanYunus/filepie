@@ -44,13 +44,17 @@ Name: "{userstartup}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: st
 
 ; Register Explorer context menu directly during installation
 [Registry]
-Root: HKCU; Subkey: "Software\Classes\*\shell\FilePie"; ValueType: string; ValueData: "Convert with FilePie 🥧"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\*\shell\FilePie"; ValueType: string; ValueData: "Convert with FilePie"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\*\shell\FilePie"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
 Root: HKCU; Subkey: "Software\Classes\*\shell\FilePie\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" --convert ""%V"""
 
-Root: HKCU; Subkey: "Software\Classes\Directory\shell\FilePie"; ValueType: string; ValueData: "Convert with FilePie 🥧"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\Directory\shell\FilePie"; ValueType: string; ValueData: "Convert with FilePie"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\Directory\shell\FilePie"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
 Root: HKCU; Subkey: "Software\Classes\Directory\shell\FilePie\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" --convert ""%V"""
+
+Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\FilePie"; ValueType: string; ValueData: "Convert with FilePie"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\FilePie"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\FilePie\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" --convert ""%V"""
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent

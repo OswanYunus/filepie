@@ -34,10 +34,16 @@ class PieMenu(QtWidgets.QWidget):
         pos = QtGui.QCursor.pos()
         self.move(pos.x() - size // 2, pos.y() - size // 2)
 
+        self._can_close_on_focus_loss = False
+        QtCore.QTimer.singleShot(400, self._enable_focus_loss_close)
+
         self.show()
         self.raise_()
         self.activateWindow()
         self.setFocus(QtCore.Qt.ActiveWindowFocusReason)
+
+    def _enable_focus_loss_close(self):
+        self._can_close_on_focus_loss = True
 
     # ---- geometry -----------------------------------------------------
     def _center(self):
@@ -77,7 +83,8 @@ class PieMenu(QtWidgets.QWidget):
             self.close()
 
     def focusOutEvent(self, event):
-        self.close()
+        if getattr(self, "_can_close_on_focus_loss", False):
+            self.close()
 
     # ---- painting -----------------------------------------------------
     def paintEvent(self, event):

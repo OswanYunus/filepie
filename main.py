@@ -174,9 +174,15 @@ def _install_context_menu():
     files and folders. Uses HKCU so no admin is needed."""
     import winreg
 
-    pythonw = _get_python_path()
-    main_py = os.path.join(APP_DIR, "main.py")
-    command = f'"{pythonw}" "{main_py}" --convert "%V"'
+    if getattr(sys, "frozen", False):
+        exe_path = sys.executable
+        icon_path = f'"{exe_path}",0'
+        command = f'"{exe_path}" --convert "%V"'
+    else:
+        pythonw = _get_python_path()
+        main_py = os.path.join(APP_DIR, "main.py")
+        icon_path = f'"{pythonw}",0'
+        command = f'"{pythonw}" "{main_py}" --convert "%V"'
 
     # For all file types
     keys = [
@@ -187,8 +193,8 @@ def _install_context_menu():
 
     for key_path in keys:
         key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, key_path)
-        winreg.SetValueEx(key, "", 0, winreg.REG_SZ, "Convert with FilePie 🥧")
-        winreg.SetValueEx(key, "Icon", 0, winreg.REG_SZ, f"{pythonw},0")
+        winreg.SetValueEx(key, "", 0, winreg.REG_SZ, "Convert with FilePie")
+        winreg.SetValueEx(key, "Icon", 0, winreg.REG_SZ, icon_path)
         winreg.CloseKey(key)
 
         cmd_key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, key_path + r"\command")
@@ -220,9 +226,11 @@ def _uninstall_context_menu():
 # ---- entry point -------------------------------------------------------
 
 if __name__ == "__main__":
-    if len(sys.argv) >= 3 and sys.argv[1] == "--convert":
-        file_path = sys.argv[2]
-        FilePieConvert(file_path).run()
+    if "--convert" in sys.argv:
+        idx = sys.argv.index("--convert")
+        if idx + 1 < len(sys.argv):
+            file_path = sys.argv[idx + 1]
+            FilePieConvert(file_path).run()
     else:
         # Install context menu automatically on first run, then sit in tray
         _install_context_menu()
