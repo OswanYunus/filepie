@@ -9,7 +9,7 @@ Right-click any file or folder in Windows Explorer, and an intuitive radial whee
 ## Download & Install (Zero Setup)
 
 1. Go to **[Releases](https://github.com/OswanYunus/filepie/releases)**.
-2. Download **`FilePie_Setup_v1.0.2.exe`**.
+2. Download **`FilePie_Setup_v1.0.3.exe`**.
 3. Run the installer and finish the setup wizard.
 4. **Done!** No Python, no terminal, no `pip install` required.
 

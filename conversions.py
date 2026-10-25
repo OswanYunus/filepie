@@ -316,6 +316,65 @@ def _pdf_to_docx(path):
 
 # ---- document converters ------------------------------------------------
 
+# ---- PDF helper with Unicode font support -------------------------------
+
+def _create_unicode_pdf():
+    from fpdf import FPDF
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    windir = os.environ.get("WINDIR", "C:\\Windows")
+    fonts_dir = os.path.join(windir, "Fonts")
+
+    arial = os.path.join(fonts_dir, "arial.ttf")
+    arial_bd = os.path.join(fonts_dir, "arialbd.ttf")
+    consola = os.path.join(fonts_dir, "consola.ttf")
+
+    has_sans = False
+    has_mono = False
+
+    if os.path.exists(arial):
+        try:
+            pdf.add_font("Sans", "", arial)
+            if os.path.exists(arial_bd):
+                pdf.add_font("Sans", "B", arial_bd)
+            else:
+                pdf.add_font("Sans", "B", arial)
+            has_sans = True
+        except Exception:
+            pass
+
+    if os.path.exists(consola):
+        try:
+            pdf.add_font("Mono", "", consola)
+            has_mono = True
+        except Exception:
+            pass
+
+    return pdf, has_sans, has_mono
+
+
+def _sanitize_pdf_text(text):
+    """Normalize common unicode characters like em-dashes and smart quotes
+    so they render seamlessly even if a fallback font is used."""
+    replacements = {
+        "\u2014": "--",   # em dash
+        "\u2013": "-",    # en dash
+        "\u2018": "'",    # left single quote
+        "\u2019": "'",    # right single quote
+        "\u201c": '"',    # left double quote
+        "\u201d": '"',    # right double quote
+        "\u2026": "...",  # ellipsis
+        "\u2022": "*",    # bullet
+        "\u00a0": " ",    # non-breaking space
+        "\u200b": "",     # zero-width space
+        "\ufeff": "",     # byte order mark
+    }
+    for k, v in replacements.items():
+        text = text.replace(k, v)
+    return text
+
+
 def _document_to_text(path):
     ext = os.path.splitext(path)[1].lower()
     out = _output_path(path, "txt")
@@ -344,26 +403,25 @@ def _document_to_pdf(path):
 
 def _docx_to_pdf(path):
     from docx import Document
-    from fpdf import FPDF
 
     doc = Document(path)
     out = _output_path(path, "pdf")
 
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf, has_sans, _ = _create_unicode_pdf()
     pdf.add_page()
-    pdf.set_font("Helvetica", size=11)
+    font_name = "Sans" if has_sans else "Helvetica"
+    pdf.set_font(font_name, size=11)
 
     for para in doc.paragraphs:
-        text = para.text.strip()
+        text = _sanitize_pdf_text(para.text.strip())
         if not text:
             pdf.ln(4)
             continue
         # Detect headings
         if para.style and para.style.name and "Heading" in para.style.name:
-            pdf.set_font("Helvetica", "B", size=14)
+            pdf.set_font(font_name, "B", size=14)
             pdf.multi_cell(w=pdf.epw, h=7, text=text)
-            pdf.set_font("Helvetica", size=11)
+            pdf.set_font(font_name, size=11)
             pdf.ln(2)
         else:
             pdf.multi_cell(w=pdf.epw, h=6, text=text)
@@ -376,20 +434,20 @@ def _docx_to_pdf(path):
 # ---- text / code → PDF --------------------------------------------------
 
 def _text_to_pdf(path):
-    from fpdf import FPDF
-
     out = _output_path(path, "pdf")
     ext = os.path.splitext(path)[1].lower()
 
     with open(path, "r", encoding="utf-8", errors="replace") as f:
         content = f.read()
 
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf, has_sans, has_mono = _create_unicode_pdf()
     pdf.add_page()
 
     filename = os.path.basename(path)
-    pdf.set_font("Helvetica", "B", size=12)
+    body_font = "Sans" if has_sans else "Helvetica"
+    mono_font = "Mono" if has_mono else ("Courier" if not has_sans else "Sans")
+
+    pdf.set_font(body_font, "B", size=12)
     pdf.cell(0, 10, filename, ln=True)
     pdf.ln(4)
 
@@ -399,14 +457,14 @@ def _text_to_pdf(path):
                  ".sql", ".r", ".lua", ".dart", ".scala", ".json", ".xml",
                  ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf", ".csv", ".tsv"}
     if ext in code_exts:
-        pdf.set_font("Courier", size=9)
+        pdf.set_font(mono_font, size=9)
         line_height = 4.5
     else:
-        pdf.set_font("Helvetica", size=11)
+        pdf.set_font(body_font, size=11)
         line_height = 6
 
     for line in content.split("\n"):
-        line = line.replace("\r", "").replace("\t", "    ")
+        line = _sanitize_pdf_text(line.replace("\r", "").replace("\t", "    "))
         pdf.multi_cell(w=pdf.epw, h=line_height, text=line)
 
     pdf.output(out)
@@ -448,34 +506,31 @@ def _markdown_to_html(path):
 
 
 def _markdown_to_pdf(path):
-    import markdown
-    from fpdf import FPDF
+    out = _output_path(path, "pdf")
 
     with open(path, "r", encoding="utf-8", errors="replace") as f:
         content = f.read()
 
-    out = _output_path(path, "pdf")
-
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf, has_sans, _ = _create_unicode_pdf()
     pdf.add_page()
-    pdf.set_font("Helvetica", size=11)
+    font_name = "Sans" if has_sans else "Helvetica"
+    pdf.set_font(font_name, size=11)
 
     for line in content.split("\n"):
-        line = line.replace("\r", "").replace("\t", "    ")
+        line = _sanitize_pdf_text(line.replace("\r", "").replace("\t", "    "))
         # Simple markdown heading detection
         if line.startswith("# "):
-            pdf.set_font("Helvetica", "B", size=18)
+            pdf.set_font(font_name, "B", size=18)
             pdf.multi_cell(w=pdf.epw, h=10, text=line[2:])
-            pdf.set_font("Helvetica", size=11)
+            pdf.set_font(font_name, size=11)
         elif line.startswith("## "):
-            pdf.set_font("Helvetica", "B", size=15)
+            pdf.set_font(font_name, "B", size=15)
             pdf.multi_cell(w=pdf.epw, h=8, text=line[3:])
-            pdf.set_font("Helvetica", size=11)
+            pdf.set_font(font_name, size=11)
         elif line.startswith("### "):
-            pdf.set_font("Helvetica", "B", size=13)
+            pdf.set_font(font_name, "B", size=13)
             pdf.multi_cell(w=pdf.epw, h=7, text=line[4:])
-            pdf.set_font("Helvetica", size=11)
+            pdf.set_font(font_name, size=11)
         elif line.strip() == "":
             pdf.ln(4)
         else:
@@ -509,7 +564,6 @@ def _html_to_text(path):
 
 
 def _html_to_pdf(path):
-    from fpdf import FPDF
     from bs4 import BeautifulSoup
 
     out = _output_path(path, "pdf")
@@ -520,13 +574,13 @@ def _html_to_pdf(path):
         tag.decompose()
     text = soup.get_text(separator="\n")
 
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf, has_sans, _ = _create_unicode_pdf()
     pdf.add_page()
-    pdf.set_font("Helvetica", size=10)
+    font_name = "Sans" if has_sans else "Helvetica"
+    pdf.set_font(font_name, size=10)
 
     for line in text.split("\n"):
-        line = line.strip().replace("\t", "    ")
+        line = _sanitize_pdf_text(line.strip().replace("\t", "    "))
         if line:
             pdf.multi_cell(w=pdf.epw, h=6, text=line)
         else:
