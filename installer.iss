@@ -1,6 +1,6 @@
 ; Inno Setup Script for FilePie
 #define MyAppName "FilePie"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.1"
 #define MyAppPublisher "OswanYunus"
 #define MyAppURL "https://github.com/OswanYunus/filepie"
 #define MyAppExeName "FilePie.exe"
@@ -17,7 +17,7 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir=installer_output
-OutputBaseFilename=FilePie_Setup_v1.0.0
+OutputBaseFilename=FilePie_Setup_v1.0.1
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
