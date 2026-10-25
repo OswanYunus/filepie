@@ -9,9 +9,11 @@ Right-click any file or folder in Windows Explorer, and an intuitive radial whee
 ## Download & Install (Zero Setup)
 
 1. Go to **[Releases](https://github.com/OswanYunus/filepie/releases)**.
-2. Download **`FilePie_Setup_v1.0.4.exe`**.
+2. Download **`FilePie_Setup_v1.0.6.exe`**.
 3. Run the installer and finish the setup wizard.
 4. **Done!** No Python, no terminal, no `pip install` required.
+
+> **Windows SmartScreen Note:** Since FilePie is a new open-source release without an expensive paid corporate code-signing certificate, Windows SmartScreen may show a prompt ("Windows protected your PC"). Click **"More info"** -> **"Run anyway"** to proceed.
 
 ---
 
@@ -29,7 +31,7 @@ Right-click any file or folder in Windows Explorer, and an intuitive radial whee
 
 | File Type | Available Conversions |
 |-----------|------------------------|
-| **PDF** (`.pdf`) | First page to PNG / JPG, Extract full text (`.txt`), All pages to PNGs |
+| **PDF** (`.pdf`) | First page to PNG / JPG, DOCX document, Extract full text (`.txt`), All pages to PNGs |
 | **Documents** (`.docx`, `.odt`, `.rtf`) | Formatted PDF, Plain text (`.txt`) |
 | **Web** (`.html`, `.htm`) | Render to PDF, Clean plain text (`.txt`) |
 | **Markdown** (`.md`, `.markdown`) | Formatted PDF, Styled HTML page, Plain text |

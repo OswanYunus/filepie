@@ -304,14 +304,32 @@ def _pdf_to_text(path):
 
 def _pdf_to_docx(path):
     try:
-        from pdf2docx import Converter
+        from pypdf import PdfReader
+        from docx import Document
+
         out = _output_path(path, "docx")
-        cv = Converter(path)
-        cv.convert(out)
-        cv.close()
+        reader = PdfReader(path)
+        doc = Document()
+
+        for page_idx, page in enumerate(reader.pages):
+            text = page.extract_text() or ""
+            lines = text.split("\n")
+            for line in lines:
+                line_str = line.strip()
+                if not line_str:
+                    continue
+                # If short line and in uppercase, treat as potential heading
+                if line_str.isupper() and len(line_str) < 60:
+                    doc.add_heading(line_str, level=2)
+                else:
+                    doc.add_paragraph(line_str)
+            if page_idx < len(reader.pages) - 1:
+                doc.add_page_break()
+
+        doc.save(out)
         return True, f"Saved to {out}"
-    except ImportError:
-        return False, "pdf2docx is not bundled in this build."
+    except Exception as e:
+        return False, f"PDF to DOCX conversion failed: {e}"
 
 
 # ---- document converters ------------------------------------------------
@@ -564,9 +582,36 @@ def _html_to_text(path):
 
 
 def _html_to_pdf(path):
+    out = _output_path(path, "pdf")
+
+    # Method 1: High-fidelity rendering via built-in Chromium (Edge/Chrome)
+    # This preserves exact CSS layout, logos, grids, and typography identical to web view.
+    browser_candidates = [
+        os.path.join(os.environ.get("ProgramFiles(x86)", "C:\\Program Files (x86)"), "Microsoft\\Edge\\Application\\msedge.exe"),
+        os.path.join(os.environ.get("ProgramFiles", "C:\\Program Files"), "Microsoft\\Edge\\Application\\msedge.exe"),
+        os.path.join(os.environ.get("ProgramFiles", "C:\\Program Files"), "Google\\Chrome\\Application\\chrome.exe"),
+    ]
+
+    for browser in browser_candidates:
+        if os.path.exists(browser):
+            try:
+                cmd = [
+                    browser,
+                    "--headless=new",
+                    "--disable-gpu",
+                    "--no-pdf-header-footer",
+                    f"--print-to-pdf={out}",
+                    os.path.abspath(path),
+                ]
+                res = subprocess.run(cmd, capture_output=True, text=True, timeout=15, **_no_window_flags())
+                if os.path.exists(out) and os.path.getsize(out) > 0:
+                    return True, f"Saved to {out}"
+            except Exception:
+                pass
+
+    # Method 2: Fallback text-based PDF via BeautifulSoup and FPDF
     from bs4 import BeautifulSoup
 
-    out = _output_path(path, "pdf")
     with open(path, "r", encoding="utf-8", errors="replace") as f:
         soup = BeautifulSoup(f.read(), "html.parser")
 
