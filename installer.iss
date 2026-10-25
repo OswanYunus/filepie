@@ -1,6 +1,6 @@
 ; Inno Setup Script for FilePie
 #define MyAppName "FilePie"
-#define MyAppVersion "1.0.1"
+#define MyAppVersion "1.0.2"
 #define MyAppPublisher "OswanYunus"
 #define MyAppURL "https://github.com/OswanYunus/filepie"
 #define MyAppExeName "FilePie.exe"
@@ -17,12 +17,14 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir=installer_output
-OutputBaseFilename=FilePie_Setup_v1.0.1
+OutputBaseFilename=FilePie_Setup_v1.0.2
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
 ArchitecturesInstallIn64BitMode=x64compatible
+CloseApplications=yes
+RestartApplications=no
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -58,3 +60,33 @@ Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\FilePie\command
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+
+[Code]
+// Automatically uninstall any previously installed version before installing the new one
+function GetUninstallString(): String;
+var
+  sUninstPath: String;
+  sUnInstallString: String;
+begin
+  sUnInstallString := '';
+  sUninstPath := ExpandConstant('Software\Microsoft\Windows\CurrentVersion\Uninstall\{#emit SetupSetting("AppId")}_is1');
+  if not RegQueryStringValue(HKCU, sUninstPath, 'QuietUninstallString', sUnInstallString) then
+    RegQueryStringValue(HKLM, sUninstPath, 'QuietUninstallString', sUnInstallString);
+  Result := sUnInstallString;
+end;
+
+function InitializeSetup(): Boolean;
+var
+  V: Integer;
+  iResultCode: Integer;
+  sUnInstallString: String;
+begin
+  Result := True;
+  sUnInstallString := GetUninstallString();
+  if sUnInstallString <> '' then
+  begin
+    // Silently remove the old version
+    sUnInstallString := RemoveQuotes(sUnInstallString);
+    Exec(sUnInstallString, '/SILENT /VERYSILENT /NORESTART /SUPPRESSMSGBOXES', '', SW_HIDE, ewWaitUntilTerminated, iResultCode);
+  end;
+end;
