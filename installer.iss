@@ -1,6 +1,6 @@
 ; Inno Setup Script for FilePie
 #define MyAppName "FilePie"
-#define MyAppVersion "1.0.3"
+#define MyAppVersion "1.0.4"
 #define MyAppPublisher "OswanYunus"
 #define MyAppURL "https://github.com/OswanYunus/filepie"
 #define MyAppExeName "FilePie.exe"
@@ -17,13 +17,13 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir=installer_output
-OutputBaseFilename=FilePie_Setup_v1.0.3
+OutputBaseFilename=FilePie_Setup_v1.0.4
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
 ArchitecturesInstallIn64BitMode=x64compatible
-CloseApplications=yes
+CloseApplications=force
 RestartApplications=no
 
 [Languages]
@@ -62,7 +62,7 @@ Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\FilePie\command
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
 [Code]
-// Automatically uninstall any previously installed version before installing the new one
+// Automatically terminate any running FilePie process and uninstall prior versions
 function GetUninstallString(): String;
 var
   sUninstPath: String;
@@ -75,18 +75,31 @@ begin
   Result := sUnInstallString;
 end;
 
+procedure KillRunningFilePie();
+var
+  iResultCode: Integer;
+begin
+  // Force terminate any running FilePie instance so Windows releases the file lock
+  Exec('taskkill.exe', '/F /IM FilePie.exe /T', '', SW_HIDE, ewWaitUntilTerminated, iResultCode);
+  Sleep(500);
+end;
+
 function InitializeSetup(): Boolean;
 var
-  V: Integer;
   iResultCode: Integer;
   sUnInstallString: String;
 begin
   Result := True;
+  
+  // 1. Force kill running process first
+  KillRunningFilePie();
+
+  // 2. Silently uninstall older installation
   sUnInstallString := GetUninstallString();
   if sUnInstallString <> '' then
   begin
-    // Silently remove the old version
     sUnInstallString := RemoveQuotes(sUnInstallString);
     Exec(sUnInstallString, '/SILENT /VERYSILENT /NORESTART /SUPPRESSMSGBOXES', '', SW_HIDE, ewWaitUntilTerminated, iResultCode);
+    Sleep(500);
   end;
 end;
